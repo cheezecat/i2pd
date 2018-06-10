@@ -344,18 +344,18 @@ namespace data
 		switch (keyType)
 		{
 			case SIGNING_KEY_TYPE_DSA_SHA1:
-				UpdateVerifier (new i2p::crypto::DSAVerifier (m_StandardIdentity.signingKey));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto::DSAVerifier (m_StandardIdentity.signingKey)));
 			break;
 			case SIGNING_KEY_TYPE_ECDSA_SHA256_P256:
 			{
 				size_t padding =  128 - i2p::crypto::ECDSAP256_KEY_LENGTH; // 64 = 128 - 64
-				UpdateVerifier (new i2p::crypto::ECDSAP256Verifier (m_StandardIdentity.signingKey + padding));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto::ECDSAP256Verifier (m_StandardIdentity.signingKey + padding)));
 				break;
 			}
 			case SIGNING_KEY_TYPE_ECDSA_SHA384_P384:
 			{
 				size_t padding = 128 - i2p::crypto::ECDSAP384_KEY_LENGTH; // 32 = 128 - 96
-				UpdateVerifier (new i2p::crypto::ECDSAP384Verifier (m_StandardIdentity.signingKey + padding));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto::ECDSAP384Verifier (m_StandardIdentity.signingKey + padding)));
 				break;
 			}
 			case SIGNING_KEY_TYPE_ECDSA_SHA512_P521:
@@ -364,7 +364,7 @@ namespace data
 				memcpy (signingKey, m_StandardIdentity.signingKey, 128);
 				size_t excessLen = i2p::crypto::ECDSAP521_KEY_LENGTH - 128; // 4 = 132- 128
 				memcpy (signingKey + 128, m_ExtendedBuffer + 4, excessLen); // right after signing and crypto key types
-				UpdateVerifier (new i2p::crypto::ECDSAP521Verifier (signingKey));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto::ECDSAP521Verifier (signingKey)));
 				break;
 			}
 			case SIGNING_KEY_TYPE_RSA_SHA256_2048:
@@ -373,7 +373,7 @@ namespace data
 				memcpy (signingKey, m_StandardIdentity.signingKey, 128);
 				size_t excessLen = i2p::crypto::RSASHA2562048_KEY_LENGTH - 128; // 128 = 256- 128
 				memcpy (signingKey + 128, m_ExtendedBuffer + 4, excessLen); // right after signing and crypto key types
-				UpdateVerifier (new i2p::crypto:: RSASHA2562048Verifier (signingKey));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto:: RSASHA2562048Verifier (signingKey)));
 				break;
 			}
 			case SIGNING_KEY_TYPE_RSA_SHA384_3072:
@@ -382,7 +382,7 @@ namespace data
 				memcpy (signingKey, m_StandardIdentity.signingKey, 128);
 				size_t excessLen = i2p::crypto::RSASHA3843072_KEY_LENGTH - 128; // 256 = 384- 128
 				memcpy (signingKey + 128, m_ExtendedBuffer + 4, excessLen); // right after signing and crypto key types
-				UpdateVerifier (new i2p::crypto:: RSASHA3843072Verifier (signingKey));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto:: RSASHA3843072Verifier (signingKey)));
 				break;
 			}
 			case SIGNING_KEY_TYPE_RSA_SHA512_4096:
@@ -391,25 +391,25 @@ namespace data
 				memcpy (signingKey, m_StandardIdentity.signingKey, 128);
 				size_t excessLen = i2p::crypto::RSASHA5124096_KEY_LENGTH - 128; // 384 = 512- 128
 				memcpy (signingKey + 128, m_ExtendedBuffer + 4, excessLen); // right after signing and crypto key types
-				UpdateVerifier (new i2p::crypto:: RSASHA5124096Verifier (signingKey));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto:: RSASHA5124096Verifier (signingKey)));
 				break;
 			}
 			case SIGNING_KEY_TYPE_EDDSA_SHA512_ED25519:
 			{
 				size_t padding =  128 - i2p::crypto::EDDSA25519_PUBLIC_KEY_LENGTH; // 96 = 128 - 32
-				UpdateVerifier (new i2p::crypto::EDDSA25519Verifier (m_StandardIdentity.signingKey + padding));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto::EDDSA25519Verifier (m_StandardIdentity.signingKey + padding)));
 				break;
 			}
 			case SIGNING_KEY_TYPE_GOSTR3410_CRYPTO_PRO_A_GOSTR3411_256:
 			{
 				size_t padding =  128 - i2p::crypto::GOSTR3410_256_PUBLIC_KEY_LENGTH; // 64 = 128 - 64
-				UpdateVerifier (new i2p::crypto::GOSTR3410_256_Verifier (i2p::crypto::eGOSTR3410CryptoProA, m_StandardIdentity.signingKey + padding));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto::GOSTR3410_256_Verifier (i2p::crypto::eGOSTR3410CryptoProA, m_StandardIdentity.signingKey + padding)));
 				break;
 			}
 			case SIGNING_KEY_TYPE_GOSTR3410_TC26_A_512_GOSTR3411_512:
 			{
 				// zero padding
-				UpdateVerifier (new i2p::crypto::GOSTR3410_512_Verifier (i2p::crypto::eGOSTR3410TC26A512, m_StandardIdentity.signingKey));
+				UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>(new i2p::crypto::GOSTR3410_512_Verifier (i2p::crypto::eGOSTR3410TC26A512, m_StandardIdentity.signingKey)));
 				break;
 			}
 			default:
@@ -417,16 +417,15 @@ namespace data
 		}
 	}
 
-	void IdentityEx::UpdateVerifier (i2p::crypto::Verifier * verifier) const
+	void IdentityEx::UpdateVerifier (std::unique_ptr<i2p::crypto::Verifier>&& verifier) const
 	{
 		if (!m_Verifier)
 		{
 			auto created = m_IsVerifierCreated.exchange (true);
 			if (!created)
-				m_Verifier.reset (verifier);
+				m_Verifier = std::move(verifier);
 			else
 			{
-				delete verifier;
 				int count = 0;
 				while (!m_Verifier && count < 500) // 5 seconds
 				{
@@ -437,8 +436,6 @@ namespace data
 					LogPrint (eLogError, "Identity: couldn't get verifier in 5 seconds");
 			}
 		}
-		else
-			delete verifier;
 	}
 
 	void IdentityEx::DropVerifier () const
